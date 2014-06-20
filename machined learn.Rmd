@@ -1,0 +1,130 @@
+ Manner of the Exercise Prediction 
+========================================================
+Date: 2014-06-18
+ 
+Author: Andrew Kireru 
+Purpose: prediction of exercise 
+R functions and coding paradigms we will use throughout.
+This includes loading, viewing, and cleaning raw data; as well as
+some basic visualization. This specific case we will use data from netlfik.
+Data Used: http://groupware.les.inf.puc-rio.br
+
+Packages Used: ggplot2, plyr, scales
+
+### Pre-processing
+```{r}
+library(caret)
+library(ggplot2)
+library(plyr)
+library(scales)
+```
+ 
+### loading data set
+ 
+```{r pre-set}
+training <- read.csv("pml-training.csv", header=TRUE)
+testing <- read.csv("pml-testing.csv", header=TRUE)
+outcome = factor(training$classe)    #save the outcome apart
+training = subset(training,select=-classe)
+dim(training)
+```
+
+### functions
+
+```{r}
+mae <- function(x,y)
+{
+  sum( abs(x-y) ) /length(x)
+}
+```
+
+preprocess continued
+
+```{r}
+num = sapply(training,is.numeric)
+
+tmp = as.data.frame(lapply(training[!num],function(x) gsub('#DIV/0!','',x)),stringsAsFactors=F)
+dim(tmp)
+head(tmp[,1:4])    #the first 3 columns should be still as character
+tmp[4:36] = as.data.frame(lapply(tmp[,4:36],as.numeric))    #convert
+training[!num] = tmp
+```
+
+Remove variables with a missing rate >= 0.95.
+
+```{r}
+na_rate = apply(training,2,function(x) sum(is.na(x))/length(x))    #rate of missingness
+training = training[,na_rate<0.95]
+dim(training)
+```
+
+Then remove non-numeric variables and the first column which is the sequence number. Remove near-zero variables.
+
+```{r}
+num = sapply(training,is.numeric)
+num[1] = FALSE    #also remove the first column
+training = training[num]
+
+nzv = nearZeroVar(training,saveMetrics=T)
+all(!nzv$nzv)    #none of the variables are near to zero
+dim(training)
+```
+
+Then standardize the variables.
+
+```{r}
+pre_pro1 = preProcess(training,method=c('center','scale','pca'),thresh=0.9)
+train_std = predict(pre_pro1,training)
+```
+
+Take a subset of training set, since the whole dataset is too big...
+
+```{r}
+set.seed(123)
+
+in_train = createDataPartition(y=outcome,p=0.2,list=F)
+sub_train = train_std[in_train,]
+sub_out = outcome[in_train]
+dim(sub_train)
+```
+
+### Analyze and evaluate
+
+Splice the data into 10-fold subsets. Train and cross validate.
+
+```{r,cache=TRUE}
+fitControl <- trainControl(method="repeatedcv",number=10,repeats=1)    #control of fitting
+par_grid <- expand.grid(mtry=c(2,5,10,20))    #parameter grid
+model <- train(sub_out~.,data=sub_train,method='rf',trControl=fitControl,tuneGrid=par_grid)
+```
+
+The final model is
+
+```{r}
+model
+model$results
+```
+
+with the hyper-parameter mtry=2, and the corresponding **out-of-sample error** is (1-Accuracy), which is `r 1-model$results$Accuracy[1]`.
+
+## Testing
+```{r load testing,cache=TRUE}
+testing = read.csv('pml-testing.csv')
+dim(testing)
+```
+
+Pre-process the data as what was done for the training set.
+
+```{r}
+testing = testing[names(training)]
+dim(testing)
+
+test_std = predict(pre_pro1,testing)
+```
+
+Then make predictions.
+
+```{r}
+pred = predict(model,test_std)
+pred
+```
