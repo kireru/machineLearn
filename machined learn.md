@@ -206,7 +206,9 @@ model$results
 ## 3   10   0.8989 0.8721    0.01695 0.02142
 ## 4   20   0.8852 0.8547    0.01677 0.02131
 ```
-
+ 
+sample error
+======
 with the hyper-parameter mtry=2, and the corresponding **out-of-sample error** is (1-Accuracy), which is 0.0935.
 
 ## Testing

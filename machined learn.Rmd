@@ -104,7 +104,9 @@ The final model is
 model
 model$results
 ```
-
+ 
+sample error
+======
 with the hyper-parameter mtry=2, and the corresponding **out-of-sample error** is (1-Accuracy), which is `r 1-model$results$Accuracy[1]`.
 
 ## Testing
